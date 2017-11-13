@@ -1,0 +1,8 @@
+version: '3'
+
+services:
+  lbd:
+    build: .
+    volumes:
+      - .:/app
+      - $HOME/.aws:/root/.aws
