@@ -6,9 +6,10 @@ import requests
 import zipfile
 import os
 import io
-import urllib.parse as urljoin
+from urllib.parse import urljoin
+from functools import reduce
 
-def download_source_code(repo_slug, ssm_keyname):
+def download_source_code(repo_slug,ssm_name):
     '''
         this function will:
         - acquire Github token from parameter store
@@ -20,22 +21,22 @@ def download_source_code(repo_slug, ssm_keyname):
 
     # get ssm api tokens
     try:
-        token = _get_github_api_token()
+        token = _get_github_api_token(ssm_name)
     except IndexError:
         raise IndexError("unable to get token")
-    _download_code(token,"songjin-deleteme-bk-test")
+    _download_code(token,repo_slug)
     print("all done...")
 
-def _get_github_api_token():
+def _get_github_api_token(ssm_name):
     """get ssm api_tokens"""
     ssm = boto3.client('ssm',region_name='ap-southeast-2')
     try:
-        response = ssm.get_parameters(Names=["GitHubApiToken"],WithDecryption=True)
+        response = ssm.get_parameter(Name=ssm_name,WithDecryption=True)
     except IndexError:
         print("GitHubApiToken can't be located")
         raise IndexError
     try:
-        token = response["Parameters"][0]["Value"]
+        token = response["Parameter"]["Value"]
     except IndexError:
         raise IndexError("token can't be found a ssm response, sorry")
     return token
@@ -51,43 +52,33 @@ def _unzip_zip_object(file_obj,dest="."):
             z.extractall(dest)
     except Exception as e:
         print(e)
-    # finally:
-    #     os.remove("downloaded.zip")
 
 def _download_code(token,repo_slug=""):
     """
         download code from github
-            input: api_token, repo_slug
-            output: a folder in nominated S3 bucket
         ref: 'GET /repos/:owner/:repo/:archive_format/:ref'
     """
     github_api = "https://api.github.com"
     owner = "MYOB-Technology"
     archive_format = "zipball"
+    repo_slug = repo_slug
     ref = "master"
     s3_path = ""
     auth_header={}
     auth_header["Authorization"] = "token {}".format(token)
-
-    # url = "{}/repos/{}/{}/{}/{}" \
-    # .format(
-    #     github_api,
-    #     owner,
-    #     repo_slug,
-    #     archive_format,
-    #     ref)
-
-    url = urljoin(
-        github_api,
-        owner,
-        repo_slug,
-        archive_format,
-        ref)
-    print(url)
+    url_join_items = [
+            'repos',
+            owner,
+            repo_slug,
+            archive_format,
+            ref
+        ]
+    relative_url = reduce(os.path.join, url_join_items)
+    url = urljoin(github_api,relative_url)
     headers = {""}
     resp = requests.head(url, headers=auth_header, allow_redirects=True)
-    file_obj = io.BytesIO(requests.get(resp_url).content)
+    file_obj = io.BytesIO(requests.get(resp.url).content)
     _unzip_zip_object(file_obj)
 
 if __name__ == '__main__':
-    download_source_code('abcrepo', 'blah key')
+    download_source_code("songjin-deleteme-bk-test","/ops/bk/github-api-token")
