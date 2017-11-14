@@ -1,8 +1,10 @@
 version: '3'
 
 services:
-  lbd:
+  python:
     build: .
     volumes:
       - .:/app
       - $HOME/.aws:/root/.aws
+    environment:
+      - AWS_DEFAULT_REGION=ap-southeast-2
