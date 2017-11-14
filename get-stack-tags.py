@@ -8,9 +8,16 @@ def get_stack_tags(stack_name):
     response = client.describe_stacks(
         StackName=stack_name
     )
-    tags_dict = response['Stacks'][0]['Tags']
-    return tags_dict
+    tags_array = response['Stacks'][0]['Tags']
+
+    dict = {}
+    for item in tags_array:
+        dict[item['Key']] = item['Value']
+
+
+    return dict
 
 
 if __name__ == '__main__':
     print(get_stack_tags('ops-buildkite-agent-linux'))
+
